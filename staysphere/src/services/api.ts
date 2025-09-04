@@ -1,274 +1,172 @@
-import { Property, Booking, Review, SearchFilters, ApiResponse, PaginatedResponse } from '../../shared/types';
-import { DatabaseService } from './database';
+import { Property, Booking, Review, SearchFilters, ApiResponse, PaginatedResponse, LoginCredentials, RegisterCredentials, AuthUser } from '../../shared/types';
 
-// Simulate API delay for realistic experience
-const simulateApiDelay = (ms: number = 500) => new Promise(resolve => setTimeout(resolve, ms));
+const API_BASE_URL = 'http://localhost:3001/api';
+
+async function fetchApi<T>(url: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+    try {
+        const defaultHeaders = {
+            'Content-Type': 'application/json',
+        };
+        const mergedOptions: RequestInit = {
+            ...options,
+            headers: {
+                ...defaultHeaders,
+                ...options.headers,
+            },
+        };
+        const response = await fetch(`${API_BASE_URL}${url}`, mergedOptions);
+        const data: ApiResponse<T> = await response.json();
+        if (!response.ok) {
+            return { success: false, error: data.error || 'An unknown error occurred' };
+        }
+        return data;
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'An unknown network error occurred';
+        return { success: false, error: `Failed to connect to the server: ${errorMessage}` };
+    }
+}
+
+export class AuthAPI {
+    static async login(credentials: LoginCredentials): Promise<ApiResponse<AuthUser>> {
+        return fetchApi<AuthUser>('/auth/login', {
+            method: 'POST',
+            body: JSON.stringify(credentials),
+        });
+    }
+
+    static async register(credentials: RegisterCredentials): Promise<ApiResponse<AuthUser>> {
+        return fetchApi<AuthUser>('/auth/register', {
+            method: 'POST',
+            body: JSON.stringify(credentials),
+        });
+    }
+
+    static async getMe(): Promise<ApiResponse<AuthUser>> {
+        // In a real app, the token would be sent in the Authorization header
+        return fetchApi<AuthUser>('/auth/me');
+    }
+}
 
 export class PropertyAPI {
   static async searchProperties(
-    filters?: SearchFilters, 
-    page = 1, 
+    filters?: SearchFilters,
+    page = 1,
     limit = 12
   ): Promise<ApiResponse<PaginatedResponse<Property>>> {
-    try {
-      await simulateApiDelay();
-      const result = DatabaseService.getProperties(filters, page, limit);
-      return { success: true, data: result };
-    } catch (error) {
-      return { success: false, error: 'Failed to fetch properties' };
+    const queryParams = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+    });
+    if (filters) {
+        Object.entries(filters).forEach(([key, value]) => {
+            if (value) {
+                queryParams.append(key, String(value));
+            }
+        });
     }
+    return fetchApi<PaginatedResponse<Property>>(`/properties?${queryParams.toString()}`);
   }
 
   static async getPropertyById(id: string): Promise<ApiResponse<Property>> {
-    try {
-      await simulateApiDelay();
-      const property = DatabaseService.getPropertyById(id);
-      
-      if (!property) {
-        return { success: false, error: 'Property not found' };
-      }
-      
-      return { success: true, data: property };
-    } catch (error) {
-      return { success: false, error: 'Failed to fetch property' };
-    }
+    return fetchApi<Property>(`/properties/${id}`);
   }
 
   static async createProperty(
     propertyData: Omit<Property, 'id' | 'createdAt' | 'updatedAt'>
   ): Promise<ApiResponse<Property>> {
-    try {
-      await simulateApiDelay(1000);
-      const property = DatabaseService.createProperty(propertyData);
-      return { success: true, data: property };
-    } catch (error) {
-      return { success: false, error: 'Failed to create property' };
-    }
+    return fetchApi<Property>('/properties', {
+        method: 'POST',
+        body: JSON.stringify(propertyData),
+    });
   }
 
   static async updateProperty(
-    id: string, 
+    id: string,
     updates: Partial<Property>
   ): Promise<ApiResponse<Property>> {
-    try {
-      await simulateApiDelay();
-      const property = DatabaseService.updateProperty(id, updates);
-      
-      if (!property) {
-        return { success: false, error: 'Property not found' };
-      }
-      
-      return { success: true, data: property };
-    } catch (error) {
-      return { success: false, error: 'Failed to update property' };
-    }
+    return fetchApi<Property>(`/properties/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+    });
   }
 
   static async deleteProperty(id: string): Promise<ApiResponse<boolean>> {
-    try {
-      await simulateApiDelay();
-      const deleted = DatabaseService.deleteProperty(id);
-      
-      if (!deleted) {
-        return { success: false, error: 'Property not found' };
-      }
-      
-      return { success: true, data: true };
-    } catch (error) {
-      return { success: false, error: 'Failed to delete property' };
-    }
+    return fetchApi<boolean>(`/properties/${id}`, {
+        method: 'DELETE',
+    });
   }
 
   static async getFeaturedProperties(): Promise<ApiResponse<Property[]>> {
-    try {
-      await simulateApiDelay(300);
-      const result = DatabaseService.getProperties(undefined, 1, 6);
-      // Sort by rating and return top properties
-      const featured = result.data
-        .sort((a, b) => b.ratings.average - a.ratings.average)
-        .slice(0, 4);
-      
-      return { success: true, data: featured };
-    } catch (error) {
-      return { success: false, error: 'Failed to fetch featured properties' };
-    }
+    return fetchApi<Property[]>('/properties/featured');
   }
 }
 
 export class BookingAPI {
   static async getUserBookings(userId: string): Promise<ApiResponse<Booking[]>> {
-    try {
-      await simulateApiDelay();
-      const bookings = DatabaseService.getBookings(userId);
-      
-      // Add property details to bookings
-      const bookingsWithProperties = await Promise.all(
-        bookings.map(async (booking) => {
-          const property = DatabaseService.getPropertyById(booking.propertyId);
-          return { ...booking, property: property || undefined };
-        })
-      );
-      
-      return { success: true, data: bookingsWithProperties };
-    } catch (error) {
-      return { success: false, error: 'Failed to fetch bookings' };
-    }
+    return fetchApi<Booking[]>(`/bookings/user/${userId}`);
   }
 
   static async createBooking(
     bookingData: Omit<Booking, 'id' | 'createdAt' | 'updatedAt'>
   ): Promise<ApiResponse<Booking>> {
-    try {
-      await simulateApiDelay(1000);
-      
-      // Check if property exists
-      const property = DatabaseService.getPropertyById(bookingData.propertyId);
-      if (!property) {
-        return { success: false, error: 'Property not found' };
-      }
-      
-      // Check availability (simplified check)
-      const existingBookings = DatabaseService.getBookings();
-      const conflictingBooking = existingBookings.find(booking => 
-        booking.propertyId === bookingData.propertyId &&
-        booking.status !== 'cancelled' &&
-        (
-          (new Date(bookingData.checkIn) >= new Date(booking.checkIn) && 
-           new Date(bookingData.checkIn) < new Date(booking.checkOut)) ||
-          (new Date(bookingData.checkOut) > new Date(booking.checkIn) && 
-           new Date(bookingData.checkOut) <= new Date(booking.checkOut))
-        )
-      );
-      
-      if (conflictingBooking) {
-        return { success: false, error: 'Property is not available for the selected dates' };
-      }
-      
-      const booking = DatabaseService.createBooking({
-        ...bookingData,
-        status: 'confirmed'
-      });
-      
-      return { success: true, data: booking };
-    } catch (error) {
-      return { success: false, error: 'Failed to create booking' };
-    }
+    return fetchApi<Booking>('/bookings', {
+        method: 'POST',
+        body: JSON.stringify(bookingData),
+    });
   }
 
   static async cancelBooking(id: string): Promise<ApiResponse<Booking>> {
-    try {
-      await simulateApiDelay();
-      const booking = DatabaseService.updateBooking(id, { status: 'cancelled' });
-      
-      if (!booking) {
-        return { success: false, error: 'Booking not found' };
-      }
-      
-      return { success: true, data: booking };
-    } catch (error) {
-      return { success: false, error: 'Failed to cancel booking' };
-    }
+    return fetchApi<Booking>(`/bookings/${id}/cancel`, {
+        method: 'POST',
+    });
   }
 }
 
 export class ReviewAPI {
   static async getPropertyReviews(propertyId: string): Promise<ApiResponse<Review[]>> {
-    try {
-      await simulateApiDelay();
-      const reviews = DatabaseService.getReviewsForProperty(propertyId);
-      
-      // Reviews from mock data already include guest info,
-      // but for new reviews, we'd need to populate guest details
-      const reviewsWithGuests = reviews.map(review => {
-        if (!review.guest) {
-          // This would happen for dynamically created reviews
-          // In a real app, this would be a database join
-          return { ...review, guest: { 
-            id: review.guestId, 
-            firstName: 'Anonymous', 
-            lastName: 'User' 
-          } as any };
-        }
-        return review;
-      });
-      
-      return { success: true, data: reviewsWithGuests };
-    } catch (error) {
-      return { success: false, error: 'Failed to fetch reviews' };
-    }
+    return fetchApi<Review[]>(`/reviews/property/${propertyId}`);
   }
 
   static async createReview(
     reviewData: Omit<Review, 'id' | 'createdAt'>
   ): Promise<ApiResponse<Review>> {
-    try {
-      await simulateApiDelay();
-      
-      // Check if property exists
-      const property = DatabaseService.getPropertyById(reviewData.propertyId);
-      if (!property) {
-        return { success: false, error: 'Property not found' };
-      }
-      
-      // Check if user has stayed at the property (simplified check)
-      const userBookings = DatabaseService.getBookings(reviewData.guestId);
-      const hasStayed = userBookings.some(booking => 
-        booking.propertyId === reviewData.propertyId && 
-        booking.status === 'completed'
-      );
-      
-      // Allow demo user to post reviews for testing
-      const isDemoUser = reviewData.guestId.startsWith('demo') || reviewData.guest?.email === 'demo@staysphere.com';
-      
-      if (!hasStayed && !isDemoUser) {
-        return { success: false, error: 'You can only review properties you have stayed at' };
-      }
-      
-      const review = DatabaseService.createReview(reviewData);
-      // Add guest information to the response
-      const reviewWithGuest = { ...review, guest: reviewData.guest };
-      return { success: true, data: reviewWithGuest };
-    } catch (error) {
-      return { success: false, error: 'Failed to create review' };
-    }
+    return fetchApi<Review>('/reviews', {
+        method: 'POST',
+        body: JSON.stringify(reviewData),
+    });
   }
 }
 
-// Utility API functions
 export class UtilityAPI {
   static async uploadImage(file: File): Promise<ApiResponse<string>> {
-    try {
-      await simulateApiDelay(2000);
-      
-      // In a real app, this would upload to a cloud service
-      // For now, we'll use a placeholder image service
-      const imageUrl = `https://images.unsplash.com/photo-${Date.now()}?w=800&h=600&fit=crop&q=80`;
-      
-      return { success: true, data: imageUrl };
-    } catch (error) {
-      return { success: false, error: 'Failed to upload image' };
-    }
+    // This will be a mock until a real file upload service is implemented
+    console.log("Mock image upload for:", file.name);
+    return new Promise(resolve =>
+      setTimeout(() => {
+        resolve({
+          success: true,
+          data: 'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=800&h=600&fit=crop',
+        });
+      }, 1000)
+    );
   }
 
   static async geocodeAddress(address: string): Promise<ApiResponse<{ lat: number; lng: number }>> {
-    try {
-      await simulateApiDelay(500);
-      
-      // Mock geocoding - in a real app, use Google Maps Geocoding API
-      const mockCoordinates = {
-        lat: 37.7749 + (Math.random() - 0.5) * 0.1,
-        lng: -122.4194 + (Math.random() - 0.5) * 0.1
-      };
-      
-      return { success: true, data: mockCoordinates };
-    } catch (error) {
-      return { success: false, error: 'Failed to geocode address' };
-    }
+    // This will be a mock until a real geocoding service is implemented
+    console.log("Mock geocoding for:", address);
+    return new Promise(resolve =>
+      setTimeout(() => {
+        resolve({
+          success: true,
+          data: { lat: 37.7749, lng: -122.4194 },
+        });
+      }, 500)
+    );
   }
 }
 
-// Combined API object for easy importing
 export const API = {
+  auth: AuthAPI,
   properties: PropertyAPI,
   bookings: BookingAPI,
   reviews: ReviewAPI,
