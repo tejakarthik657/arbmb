@@ -1,0 +1,52 @@
+import { Booking } from '../../../shared/types';
+
+export const bookings: Booking[] = [
+    {
+      id: 'booking-1',
+      propertyId: '1',
+      guestId: 'demo-user-1',
+      checkIn: new Date('2024-07-10').toISOString(),
+      checkOut: new Date('2024-07-15').toISOString(),
+      guests: 2,
+      totalPrice: 900,
+      status: 'completed',
+      createdAt: new Date('2024-07-01').toISOString(),
+      updatedAt: new Date('2024-07-15').toISOString(),
+    },
+    {
+      id: 'booking-2',
+      propertyId: '1',
+      guestId: 'demo-user-2',
+      checkIn: new Date('2024-06-20').toISOString(),
+      checkOut: new Date('2024-06-28').toISOString(),
+      guests: 1,
+      totalPrice: 1440,
+      status: 'completed',
+      createdAt: new Date('2024-06-10').toISOString(),
+      updatedAt: new Date('2024-06-28').toISOString(),
+    },
+    {
+      id: 'booking-3',
+      propertyId: '2',
+      guestId: 'demo-user-4',
+      checkIn: new Date('2024-07-05').toISOString(),
+      checkOut: new Date('2024-07-10').toISOString(),
+      guests: 2,
+      totalPrice: 1600,
+      status: 'completed',
+      createdAt: new Date('2024-06-25').toISOString(),
+      updatedAt: new Date('2024-07-10').toISOString(),
+    },
+    {
+      id: 'booking-4',
+      propertyId: '3',
+      guestId: 'demo-user-6',
+      checkIn: new Date('2024-04-15').toISOString(),
+      checkOut: new Date('2024-04-22').toISOString(),
+      guests: 4,
+      totalPrice: 1680,
+      status: 'completed',
+      createdAt: new Date('2024-04-01').toISOString(),
+      updatedAt: new Date('2024-04-22').toISOString(),
+    }
+];

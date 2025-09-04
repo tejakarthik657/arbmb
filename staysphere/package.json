@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:server": "bun run --cwd staysphere/server dev",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
